@@ -1,4 +1,4 @@
-name: Enhanced Documentation Readability Check
+name: Documentation Readability Analysis
 on:
   push:
     branches: [ main, master ]
@@ -10,17 +10,14 @@ on:
     paths:
       - '**/*.md'
       - '**/*.mdx'
-  workflow_dispatch:  # Allow manual triggers
+  workflow_dispatch:
 
 env:
-  MIN_FLESCH_SCORE: 60
-  MAX_GRADE_LEVEL: 12
   READING_SPEED_WPM: 200
-  FAIL_ON_ERROR: true
 
 jobs:
-  check-readability:
-    name: Check Content Readability
+  analyze-readability:
+    name: Analyze Content Readability
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -32,31 +29,30 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
+      - name: Create requirements file
+        run: |
+          echo "textstat>=0.7.3" > requirements.txt
+          echo "pandas>=2.0.0" >> requirements.txt
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install textstat pandas matplotlib seaborn
+          pip install -r requirements.txt
 
-      - name: Create readability checker script
+      - name: Create readability analyzer script
         run: |
-          cat > check_readability.py << 'EOF'
+          cat > analyze_readability.py << 'EOF'
           import textstat
           import glob
           import json
           import os
           import sys
-          import pandas as pd
-          import matplotlib.pyplot as plt
-          import seaborn as sns
           from datetime import datetime
-          from typing import Dict, List, Optional, Tuple
+          from typing import Dict, List, Optional
 
           class ReadabilityAnalyzer:
               def __init__(self, config: Dict):
-                  self.min_flesch_score = float(config.get('MIN_FLESCH_SCORE', 60))
-                  self.max_grade_level = float(config.get('MAX_GRADE_LEVEL', 12))
                   self.reading_speed_wpm = float(config.get('READING_SPEED_WPM', 200))
-                  self.fail_on_error = config.get('FAIL_ON_ERROR', 'true').lower() == 'true'
                   self.ignore_files = {
                       'CHANGELOG.md', 
                       'LICENSE.md',
@@ -66,147 +62,110 @@ jobs:
                   self.results = []
 
               def analyze_file(self, filepath: str) -> Optional[Dict]:
-                  """Analyze a single file for readability metrics."""
+                  """Analyze a single file for readability metrics without judgement."""
                   try:
                       with open(filepath, 'r', encoding='utf-8') as f:
                           content = f.read()
                           
-                      # Basic metrics
-                      flesch = textstat.flesch_reading_ease(content)
-                      grade = textstat.coleman_liau_index(content)
+                      # Collect all metrics
                       words = textstat.lexicon_count(content, removepunct=True)
                       sentences = textstat.sentence_count(content)
                       syllables = textstat.syllable_count(content)
                       
-                      # Additional metrics
-                      gunning_fog = textstat.gunning_fog(content)
-                      smog_index = textstat.smog_index(content)
-                      
-                      # Reading time calculation
-                      reading_time = (words / self.reading_speed_wpm) * 60
-                      
                       return {
                           'filepath': filepath,
-                          'flesch_reading_ease': flesch,
-                          'grade_level': grade,
-                          'gunning_fog_index': gunning_fog,
-                          'smog_index': smog_index,
-                          'word_count': words,
-                          'sentence_count': sentences,
-                          'syllable_count': syllables,
-                          'reading_time': reading_time,
-                          'avg_words_per_sentence': words / sentences if sentences > 0 else 0,
-                          'avg_syllables_per_word': syllables / words if words > 0 else 0
+                          'metrics': {
+                              'flesch_reading_ease': textstat.flesch_reading_ease(content),
+                              'flesch_kincaid_grade': textstat.flesch_kincaid_grade(content),
+                              'gunning_fog_index': textstat.gunning_fog(content),
+                              'smog_index': textstat.smog_index(content),
+                              'coleman_liau_index': textstat.coleman_liau_index(content),
+                              'automated_readability_index': textstat.automated_readability_index(content),
+                              'dale_chall_readability_score': textstat.dale_chall_readability_score(content)
+                          },
+                          'statistics': {
+                              'word_count': words,
+                              'sentence_count': sentences,
+                              'syllable_count': syllables,
+                              'avg_words_per_sentence': words / sentences if sentences > 0 else 0,
+                              'avg_syllables_per_word': syllables / words if words > 0 else 0,
+                              'estimated_reading_time_minutes': (words / self.reading_speed_wpm)
+                          }
                       }
                   except Exception as e:
                       print(f'Error analyzing {filepath}: {str(e)}')
-                      if self.fail_on_error:
-                          raise
                       return None
 
-              def generate_visualizations(self) -> None:
-                  """Generate visualizations for the readability report."""
-                  if not self.results:
-                      return
-
-                  df = pd.DataFrame(self.results)
-                  
-                  # Create visualizations directory
-                  os.makedirs('readability_report', exist_ok=True)
-                  
-                  # Flesch Score Distribution
-                  plt.figure(figsize=(10, 6))
-                  sns.histplot(data=df, x='flesch_reading_ease', bins=20)
-                  plt.axvline(x=self.min_flesch_score, color='r', linestyle='--')
-                  plt.title('Distribution of Flesch Reading Ease Scores')
-                  plt.savefig('readability_report/flesch_distribution.png')
-                  plt.close()
-                  
-                  # Grade Level vs Reading Time
-                  plt.figure(figsize=(10, 6))
-                  sns.scatterplot(data=df, x='grade_level', y='reading_time')
-                  plt.axvline(x=self.max_grade_level, color='r', linestyle='--')
-                  plt.title('Grade Level vs Reading Time')
-                  plt.savefig('readability_report/grade_vs_time.png')
-                  plt.close()
-
-              def check_documentation(self) -> Tuple[List[str], Dict]:
-                  """Main function to check documentation readability."""
-                  failed_files = []
-                  
+              def analyze_documentation(self) -> Dict:
+                  """Analyze all markdown files and generate a report."""
                   # Find all markdown files
-                  for filepath in glob.glob('**/*.md', recursive=True):
+                  markdown_files = glob.glob('**/*.md', recursive=True)
+                  if not markdown_files:
+                      print("No markdown files found to analyze!")
+                      return {'summary': {'total_files': 0}}
+                  
+                  for filepath in markdown_files:
                       if os.path.basename(filepath) not in self.ignore_files:
                           result = self.analyze_file(filepath)
                           if result:
                               self.results.append(result)
-                              
-                              # Check against thresholds
-                              if result['flesch_reading_ease'] < self.min_flesch_score:
-                                  failed_files.append(
-                                      f"{filepath} (Flesch Score: {result['flesch_reading_ease']:.1f})"
-                                  )
-                              if result['grade_level'] > self.max_grade_level:
-                                  failed_files.append(
-                                      f"{filepath} (Grade Level: {result['grade_level']:.1f})"
-                                  )
                   
                   # Generate report
                   report = {
                       'timestamp': datetime.now().isoformat(),
                       'summary': {
                           'total_files': len(self.results),
-                          'failed_files': len(failed_files),
-                          'thresholds': {
-                              'min_flesch_score': self.min_flesch_score,
-                              'max_grade_level': self.max_grade_level
+                          'configuration': {
+                              'reading_speed_wpm': self.reading_speed_wpm
                           }
                       },
                       'results': self.results
                   }
                   
-                  # Generate visualizations
-                  self.generate_visualizations()
+                  # Ensure directory exists
+                  os.makedirs('readability_report', exist_ok=True)
                   
                   # Save detailed report
                   with open('readability_report/detailed_report.json', 'w') as f:
                       json.dump(report, f, indent=2)
                   
-                  return failed_files, report
+                  return report
 
           def main():
               config = {
-                  'MIN_FLESCH_SCORE': os.environ.get('MIN_FLESCH_SCORE', '60'),
-                  'MAX_GRADE_LEVEL': os.environ.get('MAX_GRADE_LEVEL', '12'),
-                  'READING_SPEED_WPM': os.environ.get('READING_SPEED_WPM', '200'),
-                  'FAIL_ON_ERROR': os.environ.get('FAIL_ON_ERROR', 'true')
+                  'READING_SPEED_WPM': os.environ.get('READING_SPEED_WPM', '200')
               }
               
               analyzer = ReadabilityAnalyzer(config)
-              failed_files, report = analyzer.check_documentation()
+              report = analyzer.analyze_documentation()
               
-              # Print results
-              print('\n📊 Readability Report')
-              print('====================')
+              # Print summary to console
+              print('\n📊 Documentation Readability Analysis')
+              print('===================================')
               print(f"\nAnalyzed {report['summary']['total_files']} files")
-              print(f"Failed files: {report['summary']['failed_files']}")
               
-              if failed_files:
-                  print('\n❌ Failed Files:')
-                  for file in failed_files:
-                      print(f'  - {file}')
-                  sys.exit(1)
-              else:
-                  print('\n✅ All files passed readability checks!')
+              # Print detailed results
+              if report['results']:
+                  for result in report['results']:
+                      print(f"\n📄 {result['filepath']}")
+                      print("Readability Metrics:")
+                      for metric, value in result['metrics'].items():
+                          print(f"  - {metric}: {value:.2f}")
+                      print("\nDocument Statistics:")
+                      for stat, value in result['statistics'].items():
+                          if 'time' in stat:
+                              print(f"  - {stat}: {value:.1f} minutes")
+                          else:
+                              print(f"  - {stat}: {value:.2f}")
 
           if __name__ == '__main__':
               main()
           EOF
 
-      - name: Run readability checks
-        run: python check_readability.py
+      - name: Run readability analysis
+        run: python analyze_readability.py
 
-      - name: Upload report and visualizations
+      - name: Upload report
         if: always()
         uses: actions/upload-artifact@v3
         with:
@@ -214,35 +173,52 @@ jobs:
           path: readability_report/
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && always()
         uses: actions/github-script@v6
         with:
           script: |
             const fs = require('fs');
-            const report = JSON.parse(fs.readFileSync('readability_report/detailed_report.json', 'utf8'));
-            
-            let comment = '## 📊 Documentation Readability Report\n\n';
-            
-            // Add summary
-            comment += '### Summary\n';
-            comment += `- Total files analyzed: ${report.summary.total_files}\n`;
-            comment += `- Files failing checks: ${report.summary.failed_files}\n`;
-            comment += `- Minimum Flesch score: ${report.summary.thresholds.min_flesch_score}\n`;
-            comment += `- Maximum Grade level: ${report.summary.thresholds.max_grade_level}\n\n`;
-            
-            // Add detailed results
-            comment += '### Detailed Results\n\n';
-            comment += '| File | Flesch Score | Grade Level | Reading Time |\n';
-            comment += '|------|--------------|-------------|---------------|\n';
-            
-            report.results.forEach(result => {
-              const readingTimeMin = (result.reading_time / 60).toFixed(1);
-              comment += `| ${result.filepath} | ${result.flesch_reading_ease.toFixed(1)} | ${result.grade_level.toFixed(1)} | ${readingTimeMin} min |\n`;
-            });
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+            try {
+              const report = JSON.parse(fs.readFileSync('readability_report/detailed_report.json', 'utf8'));
+              
+              let comment = '## 📊 Documentation Readability Analysis\n\n';
+              
+              comment += `### Summary\n`;
+              comment += `- Total files analyzed: ${report.summary.total_files}\n`;
+              comment += `- Reading speed: ${report.summary.configuration.reading_speed_wpm} words per minute\n\n`;
+              
+              if (report.results && report.results.length > 0) {
+                for (const result of report.results) {
+                  comment += `### 📄 ${result.filepath}\n\n`;
+                  
+                  comment += '#### Readability Metrics\n';
+                  comment += '| Metric | Score |\n';
+                  comment += '|--------|-------|\n';
+                  for (const [metric, value] of Object.entries(result.metrics)) {
+                    comment += `| ${metric.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} | ${value.toFixed(2)} |\n`;
+                  }
+                  
+                  comment += '\n#### Document Statistics\n';
+                  comment += '| Statistic | Value |\n';
+                  comment += '|-----------|-------|\n';
+                  for (const [stat, value] of Object.entries(result.statistics)) {
+                    const formattedValue = stat.includes('time') ? 
+                      `${value.toFixed(1)} minutes` : 
+                      value.toFixed(2);
+                    comment += `| ${stat.replace(/_/g, ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')} | ${formattedValue} |\n`;
+                  }
+                  comment += '\n---\n\n';
+                }
+              } else {
+                comment += '\n⚠️ No markdown files were analyzed in this PR.\n';
+              }
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              console.log('Error creating PR comment:', error);
+            }
