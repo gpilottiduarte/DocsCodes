@@ -29,31 +29,104 @@ The system comprises three primary components:
 
 ## Implementation Details
 
-### Vale Configuration
+### Custom Vale Rules
+The workflow includes custom Vale linting rules specifically designed for documentation quality control:
 
-The workflow incorporates Vale linting with the following configuration:
-
-```ini
-StylesPath = .github/styles
+#### Rule Structure
+```yaml
+StylesPath = styles
 MinAlertLevel = suggestion
-[*.md]
-BasedOnStyles = Vale
+
+[*.{md,mdx}]
+BasedOnStyles = senhasegura
+
+[senhasegura]
+alert = error
+warning = warning
+info = suggestion
 ```
 
-This configuration ensures:
-- Standardized style checking
-- Consistent documentation quality
-- Automated style enforcement
-- Minimum suggestion-level alerts
+### Custom Vocabulary
+- `accept.txt`: Approved terminology list
+- `reject.txt`: Prohibited terminology list
 
-### Workflow Triggers
+### Style Rules Implementation
+Pattern Validation:
+
+```yml
+extends: regex
+message: "Titles must follow pattern: number_language_type_name"
+level: error
+scope: text
+pattern: '\d{2}_(PT|EN)_(REF|EXP|HOW)_[A-Za-z]+'
+```
+
+### Product-Specific Rules
+```yml
+extends: substitution
+message: "Use correct module name: '%s'"
+level: error
+ignorecase: false
+swap:
+  "devops manager": "DevOps Secret Manager"
+  "password manager": "Password Safe"
+```
+
+### Interface Elements
+```yml
+extends: existence
+message: "Use bold (**) for interface elements"
+level: warning
+scope: text
+tokens:
+  - "(?<!\\*\\*)(Save|Cancel|Edit|Delete)(?!\\*\\*)"
+```
+
+### Rule Categories
+- Terminology validation
+- Document structure
+- Formatting requirements
+- Interface descriptions
+- Mandatory fields
+- Navigation paths
+- Status indicators
+- Procedure formatting
+
+### Implementation Files
+- Required files structure:
+
+```
+.
+├── .vale.ini
+└── styles/
+    └── senhasegura/
+        ├── accept.txt
+        ├── reject.txt
+        ├── patterns.yml
+        ├── senhasegura_rules.yml
+        └── formatting.yml
+```
+
+### Validation Levels
+- error: Critical documentation issues
+- warning: Style recommendations
+- suggestion: Optional improvements
+
+**This custom Vale implementation ensures:**
+- Consistent terminology usage
+- Standardized documentation structure
+- Proper interface element description
+- Correct formatting practices
+- Navigation clarity
+
+## Workflow Triggers
 
 The analyzer activates on:
 - Push events to main/master branches (*.md, *.mdx files)
 - Pull request events to main/master branches (*.md, *.mdx files)
 - Manual workflow dispatch
 
-### Analysis Process
+## Analysis Process
 
 The ReadabilityAnalyzer class performs the following operations:
 
