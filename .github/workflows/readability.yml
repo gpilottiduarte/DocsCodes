@@ -36,10 +36,13 @@ jobs:
           def analyze_file(filepath):
               with open(filepath, 'r', encoding='utf-8') as f:
                   content = f.read()
+                  flesch = textstat.flesch_reading_ease(content)
+                  grade = textstat.coleman_liau_index(content)
+                  time = textstat.reading_time(content)
                   return {
-                      'flesch_score': textstat.flesch_reading_ease(content),
-                      'grade_level': textstat.coleman_liau_index(content),
-                      'reading_time': textstat.reading_time(content)
+                      'flesch_reading_ease': flesch,
+                      'grade_level': grade,
+                      'reading_time': time
                   }
           
           results = {}
@@ -56,8 +59,8 @@ jobs:
                       results[filepath] = scores
                       
                       # Critérios de falha
-                      if scores['flesch_score'] < 60:
-                          failed_files.append(f'{filepath} (Flesch Score: {scores["flesch_score"]:.1f})')
+                      if scores['flesch_reading_ease'] < 60:
+                          failed_files.append(f'{filepath} (Flesch Score: {scores["flesch_reading_ease"]:.1f})')
                       if scores['grade_level'] > 12:
                           failed_files.append(f'{filepath} (Grade Level: {scores["grade_level"]:.1f})')
                   except Exception as e:
@@ -72,7 +75,7 @@ jobs:
           print('====================')
           for filepath, scores in results.items():
               print(f'\n📄 {filepath}')
-              print(f'Flesch Score: {scores["flesch_score"]:.1f}')
+              print(f'Flesch Score: {scores["flesch_reading_ease"]:.1f}')
               print(f'Grade Level: {scores["grade_level"]:.1f}')
               print(f'Reading Time: {scores["reading_time"]:.1f} seconds')
           
@@ -104,7 +107,7 @@ jobs:
             let comment = '## 📊 Readability Report\n\n';
             for (const [file, scores] of Object.entries(report)) {
               comment += `### ${file}\n`;
-              comment += `- Flesch Score: ${scores.flesch_score.toFixed(1)}\n`;
+              comment += `- Flesch Score: ${scores.flesch_reading_ease.toFixed(1)}\n`;
               comment += `- Grade Level: ${scores.grade_level.toFixed(1)}\n`;
               comment += `- Reading Time: ${scores.reading_time.toFixed(1)} seconds\n\n`;
             }
