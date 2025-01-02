@@ -16,11 +16,35 @@ The system comprises three primary components:
 
 ### Dependencies
 
+### Core Dependencies
 - Python 3.10
 - textstat >= 0.7.3
 - pandas >= 2.0.0
 
+### Documentation Linting
+- Vale Linter
+  - Configuration Path: `.github/styles`
+  - Minimum Alert Level: suggestion
+  - Style Implementation: Vale standard style
+
 ## Implementation Details
+
+### Vale Configuration
+
+The workflow incorporates Vale linting with the following configuration:
+
+```ini
+StylesPath = .github/styles
+MinAlertLevel = suggestion
+[*.md]
+BasedOnStyles = Vale
+```
+
+This configuration ensures:
+- Standardized style checking
+- Consistent documentation quality
+- Automated style enforcement
+- Minimum suggestion-level alerts
 
 ### Workflow Triggers
 
