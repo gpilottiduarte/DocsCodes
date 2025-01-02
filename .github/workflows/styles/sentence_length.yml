@@ -1,0 +1,5 @@
+extends: metric
+message: "Tente manter as frases com menos de 30 palavras"
+level: suggestion
+metric: sentence-length
+max: 30
