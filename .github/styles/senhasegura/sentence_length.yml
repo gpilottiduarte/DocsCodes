@@ -1,5 +1,5 @@
-extends: metric
+extends: existence
 message: "Tente manter as frases com menos de 30 palavras"
 level: suggestion
-metric: sentence-length
+scope: sentence-length
 value: 30
