@@ -1,0 +1,78 @@
+# Validação de títulos
+extends: regex
+message: "Títulos devem seguir o padrão: número_idioma_tipo_nome (Ex: 01_PT_REF_MinhasAprovacoes)"
+level: error
+scope: text
+pattern: '\d{2}_(PT|EN)_(REF|EXP|HOW)_[A-Za-z]+'
+
+---
+# Validação de code fences
+extends: regex
+message: "Blocos de código devem usar três crases (```) e especificar a linguagem"
+level: error
+scope: raw
+pattern: "^```[a-z]+$"
+
+---
+# Validação de links
+extends: regex
+message: "Links devem usar o formato correto [texto](url)"
+level: warning
+scope: text
+pattern: '\[([^\]]+)\]\(([^\)]+)\)'
+
+---
+# Validação de numeração em listas
+extends: regex
+message: "Listas numeradas devem começar com '1.'"
+level: warning
+scope: text
+pattern: '^\s*1\.'
+
+---
+# Validação de avisos e alertas
+extends: regex
+message: "Avisos devem começar com 'Atenção:' ou 'Alerta!'"
+level: warning
+scope: text
+pattern: '^(Atenção:|Alerta!)'
+
+---
+# Validação de extensões de arquivo
+extends: regex
+message: "Extensões de arquivo devem usar code fences"
+level: warning
+scope: text
+pattern: '`\.[a-z]+`'
+
+---
+# Validação de caminhos de arquivo
+extends: regex
+message: "Caminhos de arquivo devem usar code fences"
+level: warning
+scope: text
+pattern: '`([A-Za-z]:\\|\/)[^\s`]+'
+
+---
+# Validação de versões
+extends: regex
+message: "Versões devem seguir o formato 'Versão X - Nome'"
+level: error
+scope: text
+pattern: '^Versão \d+ - [A-Za-z\s]+'
+
+---
+# Validação de datas
+extends: regex
+message: "Datas devem seguir o formato 'Mês DD, YYYY'"
+level: warning
+scope: text
+pattern: '(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}'
+
+---
+# Validação de itálico
+extends: regex
+message: "Palavras estrangeiras devem estar em itálico"
+level: warning
+scope: text
+pattern: '(?<!_)\b(software|hardware|backup|login|logout|update|download|upload)\b(?!_)'
