@@ -3,67 +3,86 @@ extends: existence
 message: "Títulos devem seguir o padrão: número_idioma_tipo_nome (Ex: 01_PT_REF_MinhasAprovacoes)"
 level: error
 scope: heading
-pattern: /^(?!\d{2}_(PT|EN)_(REF|EXP|HOW)_[A-Za-z]+)/
+raw:
+  - "(?!\\d{2}_(PT|EN)_(REF|EXP|HOW)_[A-Za-z]+)"
 
+---
 # Validação de code fences
 extends: existence
 message: "Blocos de código devem usar três crases (```) e especificar a linguagem"
 level: error
 scope: raw
-pattern: /^```[^a-z]/
+raw:
+  - "(?!```[a-z]+)"
 
+---
 # Validação de links
 extends: existence
 message: "Links devem usar o formato correto [texto](url)"
 level: warning
 scope: text
-pattern: /\[[^\]]+\]\([^\)]+\)/
+raw:
+  - "(?!\\[[^\\]]+\\]\\([^\\)]+\\))"
 
+---
 # Validação de numeração em listas
 extends: existence
 message: "Listas numeradas devem começar com '1.'"
 level: warning
 scope: text
-pattern: /^\s*[2-9]/
+raw:
+  - "^\\s*[2-9]"
 
+---
 # Validação de avisos e alertas
 extends: existence
 message: "Avisos devem começar com 'Atenção:' ou 'Alerta!'"
 level: warning
 scope: text
-pattern: /^(?!Atenção:|Alerta!)/
+raw:
+  - "^(?!Atenção:|Alerta!)"
 
+---
 # Validação de extensões de arquivo
 extends: existence
 message: "Extensões de arquivo devem usar code fences"
 level: warning
 scope: text
-pattern: /\.[a-z]+/
+raw:
+  - "\\.[a-z]+"
 
+---
 # Validação de caminhos de arquivo
 extends: existence
 message: "Caminhos de arquivo devem usar code fences"
 level: warning
 scope: text
-pattern: /([A-Za-z]:\\|\/)[^\s]+/
+raw:
+  - "([A-Za-z]:\\|\\/)[^\\s]+"
 
+---
 # Validação de versões
 extends: existence
 message: "Versões devem seguir o formato 'Versão X - Nome'"
 level: error
 scope: text
-pattern: /^(?!Versão \d+ - [A-Za-z\s]+)/
+raw:
+  - "^(?!Versão \\d+ - [A-Za-z\\s]+)"
 
+---
 # Validação de datas
 extends: existence
 message: "Datas devem seguir o formato 'Mês DD, YYYY'"
 level: warning
 scope: text
-pattern: /(?!(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4})/
+raw:
+  - "(?!(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2},\\s+\\d{4})"
 
+---
 # Validação de itálico
 extends: existence
 message: "Palavras estrangeiras devem estar em itálico"
 level: warning
 scope: text
-pattern: /\b(software|hardware|backup|login|logout|update|download|upload)\b/
+raw:
+  - "\\b(software|hardware|backup|login|logout|update|download|upload)\\b"
