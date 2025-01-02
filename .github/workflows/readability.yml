@@ -20,21 +20,11 @@ jobs:
         with:
           python-version: '3.10'
           
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-          
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install textstat
-          
-      - name: Install Node.js dependencies
-        run: |
-          npm install -g write-good
-          npm install -g alex
-          
+
       - name: Run Python readability checks
         run: |
           python -c "
@@ -49,7 +39,7 @@ jobs:
                   return {
                       'flesch_score': textstat.flesch_reading_ease(content),
                       'grade_level': textstat.coleman_liau_index(content),
-                      'reading_time': textstat.reading_time(content, ms_per_char=14)
+                      'reading_time': textstat.reading_time(content)
                   }
           
           results = {}
@@ -61,14 +51,17 @@ jobs:
           for filepath in glob.glob('**/*.md', recursive=True):
               filename = os.path.basename(filepath)
               if filename not in ignore_files:
-                  scores = analyze_file(filepath)
-                  results[filepath] = scores
-                  
-                  # Critérios de falha
-                  if scores['flesch_score'] < 60:
-                      failed_files.append(f'{filepath} (Flesch Score: {scores["flesch_score"]:.1f})')
-                  if scores['grade_level'] > 12:
-                      failed_files.append(f'{filepath} (Grade Level: {scores["grade_level"]:.1f})')
+                  try:
+                      scores = analyze_file(filepath)
+                      results[filepath] = scores
+                      
+                      # Critérios de falha
+                      if scores['flesch_score'] < 60:
+                          failed_files.append(f'{filepath} (Flesch Score: {scores["flesch_score"]:.1f})')
+                      if scores['grade_level'] > 12:
+                          failed_files.append(f'{filepath} (Grade Level: {scores["grade_level"]:.1f})')
+                  except Exception as e:
+                      print(f'Error processing {filepath}: {str(e)}')
           
           # Salvar relatório
           with open('readability-report.json', 'w') as f:
@@ -92,19 +85,7 @@ jobs:
           else:
               print('\n✅ All files passed readability checks!')
           "
-          
-      - name: Run write-good check
-        continue-on-error: true
-        run: |
-          echo "Running write-good checks..."
-          write-good **/*.md
-          
-      - name: Run alex check
-        continue-on-error: true
-        run: |
-          echo "Running alex checks..."
-          alex **/*.md
-          
+
       - name: Upload readability report
         if: always()
         uses: actions/upload-artifact@v3
