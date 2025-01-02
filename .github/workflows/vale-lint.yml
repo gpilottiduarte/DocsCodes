@@ -1,0 +1,38 @@
+name: Vale Lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  vale:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Vale Action
+        uses: errata-ai/vale-action@reviewdog
+        with:
+          # Especifica os arquivos a serem verificados
+          files: '**/*.md'
+          # Caminho para o arquivo de configuração do Vale
+          config: '.vale.ini'
+          # URL dos estilos (opcional se você já adicionou os estilos ao repositório)
+          # styles-url: 'https://github.com/errata-ai/Microsoft.git@main'
+          # Nível mínimo de alerta para reportar (`info`, `warning`, `error`)
+          min_alert_level: 'warning'
+          # Formato de saída (para anotações no PR)
+          formatter: 'github-pr-check'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Opcional: se você quiser usar estilos personalizados hospedados em um repositório privado
+          # PERSONAL_TOKEN: ${{ secrets.PERSONAL_TOKEN }}
