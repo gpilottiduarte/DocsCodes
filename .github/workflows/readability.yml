@@ -1,0 +1,136 @@
+name: Readability Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  check-readability:
+    name: Check Content Readability
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install textstat
+          
+      - name: Install Node.js dependencies
+        run: |
+          npm install -g write-good
+          npm install -g alex
+          
+      - name: Run Python readability checks
+        run: |
+          python -c "
+          import textstat
+          import glob
+          import json
+          import os
+          
+          def analyze_file(filepath):
+              with open(filepath, 'r', encoding='utf-8') as f:
+                  content = f.read()
+                  return {
+                      'flesch_score': textstat.flesch_reading_ease(content),
+                      'grade_level': textstat.coleman_liau_index(content),
+                      'reading_time': textstat.reading_time(content, ms_per_char=14)
+                  }
+          
+          results = {}
+          failed_files = []
+          
+          # Arquivos a serem ignorados
+          ignore_files = ['CHANGELOG.md', 'LICENSE.md']
+          
+          for filepath in glob.glob('**/*.md', recursive=True):
+              filename = os.path.basename(filepath)
+              if filename not in ignore_files:
+                  scores = analyze_file(filepath)
+                  results[filepath] = scores
+                  
+                  # Critérios de falha
+                  if scores['flesch_score'] < 60:
+                      failed_files.append(f'{filepath} (Flesch Score: {scores["flesch_score"]:.1f})')
+                  if scores['grade_level'] > 12:
+                      failed_files.append(f'{filepath} (Grade Level: {scores["grade_level"]:.1f})')
+          
+          # Salvar relatório
+          with open('readability-report.json', 'w') as f:
+              json.dump(results, f, indent=2)
+          
+          # Imprimir resultados
+          print('📊 Readability Report')
+          print('====================')
+          for filepath, scores in results.items():
+              print(f'\n📄 {filepath}')
+              print(f'Flesch Score: {scores["flesch_score"]:.1f}')
+              print(f'Grade Level: {scores["grade_level"]:.1f}')
+              print(f'Reading Time: {scores["reading_time"]:.1f} seconds')
+          
+          # Verificar falhas
+          if failed_files:
+              print('\n❌ The following files failed readability checks:')
+              for file in failed_files:
+                  print(f'- {file}')
+              exit(1)
+          else:
+              print('\n✅ All files passed readability checks!')
+          "
+          
+      - name: Run write-good check
+        continue-on-error: true
+        run: |
+          echo "Running write-good checks..."
+          write-good **/*.md
+          
+      - name: Run alex check
+        continue-on-error: true
+        run: |
+          echo "Running alex checks..."
+          alex **/*.md
+          
+      - name: Upload readability report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: readability-report
+          path: readability-report.json
+          
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('readability-report.json', 'utf8'));
+            
+            let comment = '## 📊 Readability Report\n\n';
+            for (const [file, scores] of Object.entries(report)) {
+              comment += `### ${file}\n`;
+              comment += `- Flesch Score: ${scores.flesch_score.toFixed(1)}\n`;
+              comment += `- Grade Level: ${scores.grade_level.toFixed(1)}\n`;
+              comment += `- Reading Time: ${scores.reading_time.toFixed(1)} seconds\n\n`;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
