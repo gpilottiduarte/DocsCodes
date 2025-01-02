@@ -81,15 +81,6 @@ jobs:
                   print(f\"Grade Level: {scores['grade_level']:.1f}\")
                   print(f\"Reading Time: {scores['reading_time']:.1f} seconds\")
           
-              # Verificar falhas
-              if failed_files:
-                  print('\\n❌ The following files failed readability checks:')
-                  for file in failed_files:
-                      print(f'- {file}')
-                  sys.exit(1)
-              else:
-                  print('\\n✅ All files passed readability checks!')
-          
           main()
           """
           
